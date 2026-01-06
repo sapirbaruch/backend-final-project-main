@@ -1,0 +1,28 @@
+{
+  "name": "cost-manager-api",
+  "version": "1.0.0",
+  "description": "Cost Manager RESTful Web Services",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "start:users": "PORT_USERS=3001 node src/users/app.js",
+    "start:costs": "PORT_COSTS=3002 node src/costs/app.js",
+    "start:logs": "PORT_LOGS=3003 node src/logs/app.js",
+    "start:admin": "PORT_ADMIN=3004 node src/admin/app.js",
+    "start:all": "concurrently \"npm run start:users\" \"npm run start:costs\" \"npm run start:logs\" \"npm run start:admin\"",
+    "dev": "concurrently \"nodemon --watch src/users --exec \"node src/users/app.js\"\" \"nodemon --watch src/costs --exec \"node src/costs/app.js\"\" \"nodemon --watch src/logs --exec \"node src/logs/app.js\"\" \"nodemon --watch src/admin --exec \"node src/admin/app.js\"\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "mongoose": "^7.8.8",
+    "pino": "^10.1.0",
+    "pino-http": "^8.3.3",
+    "pino-pretty": "^10.3.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.1",
+    "nodemon": "^3.0.1"
+  }
+}
