@@ -15,7 +15,7 @@ async function getOrCreateReport(userId, year, month) {
 
   if (!report) {
     const costs = await Cost.find({ userid: uid, year: y, month: m });
-    const categories = ['food', 'health', 'housing', 'sports', 'education', 'transportation', 'other'];
+const categories = ['food', 'health', 'housing', 'sports', 'education'];
 
     // Requirement: Specific JSON structure "costs": [{"category": [...]}] 
     const formattedCosts = categories.map(cat => ({
