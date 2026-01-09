@@ -1,34 +1,30 @@
-// src/logs/app.js
 const express = require('express');
 const dotenv = require('dotenv');
-
 const connectDb = require('../utils/connect-db');
-const { logMiddleware } = require('../utils/logger');
 const Log = require('../models/log-model');
+const { logMiddleware } = require('../utils/logger');
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-// Requirement: log every HTTP request (including this service itself)
+//++c: Log every HTTP request (required)
 app.use(logMiddleware);
 
-/*
- * GET /api/logs
- * Returns all log documents from the logs collection.
- */
+//++c: Route - Get all logs (GET /api/logs)
 app.get('/api/logs', async (req, res) => {
   try {
     const logs = await Log.find({});
-    return res.json(logs);
+    res.json(logs);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ id: 500, message: err.message });
+    res.status(500).json({ id: 500, message: err.message });
   }
 });
 
-const PORT = process.env.PORT_LOGS || 3003;
+//++c: Deployment compatibility - prefer process.env.PORT
+const PORT = process.env.PORT || process.env.PORT_LOGS || 3003;
 
 connectDb().then(() => {
   app.listen(PORT, () => console.log(`Logs Service running on port ${PORT}`));

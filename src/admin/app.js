@@ -21,7 +21,7 @@ app.get('/api/about', (req, res) => {
   ]);
 });
 
-const PORT = process.env.PORT_ADMIN || 3004;
+const PORT = process.env.PORT || process.env.PORT_ADMIN || 3004;
 connectDb().then(() => {
   app.listen(PORT, () => console.log(`Admin Service running on port ${PORT}`));
 });

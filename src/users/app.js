@@ -1,125 +1,110 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const connectDb = require('../utils/connect-db');
-const { logMiddleware, logger } = require('../utils/logger');
+const { logMiddleware } = require('../utils/logger');
 const User = require('../models/user-model');
 const Cost = require('../models/cost-model');
 
 dotenv.config();
-const app = express();
 
+const app = express();
 app.use(express.json());
+
+//++c: Log every HTTP request (required)
 app.use(logMiddleware);
 
-/*
- * POST /api/add
- * Adds a new user.
- */
+//++c: Route - Add User
 app.post('/api/add', async (req, res) => {
-  logger.info('Endpoint accessed: POST /api/add');
-
   try {
     const { id, first_name, last_name, birthday } = req.body;
 
+    //++c: Validate required fields
     if (!id || !first_name || !last_name || !birthday) {
       return res.status(400).json({ id: 400, message: 'Missing required fields' });
     }
 
     const userId = Number(id);
-    if (isNaN(userId)) {
-      return res.status(400).json({ id: 400, message: 'Invalid id' });
-    }
+    //++c: Validate id is numeric
+    if (isNaN(userId)) return res.status(400).json({ id: 400, message: 'Invalid id' });
 
+    //++c: Prevent duplicate users by id
     const exists = await User.findOne({ id: userId });
-    if (exists) {
-      return res.status(400).json({ id: 400, message: 'User already exists' });
+    if (exists) return res.status(400).json({ id: 400, message: 'User already exists' });
+
+    //++c: Parse birthday into Date (supports different string formats)
+    let parsedBirthday;
+    if (birthday instanceof Date) {
+      parsedBirthday = birthday;
+    } else if (typeof birthday === 'string') {
+      let cleaned = birthday.replace(/(\d+)(st|nd|rd|th)/gi, '$1');
+      cleaned = cleaned.replace(/,/g, ' ');
+      parsedBirthday = new Date(cleaned);
+      if (isNaN(parsedBirthday.getTime())) {
+        parsedBirthday = new Date(birthday.replace(/,/g, ''));
+      }
+    } else {
+      parsedBirthday = new Date(birthday);
     }
 
-    let parsedBirthday = new Date(
-      birthday.toString().replace(/(\d+)(st|nd|rd|th)/gi, '$1').replace(/,/g, ' ')
-    );
-
-    if (isNaN(parsedBirthday.getTime())) {
+    if (!parsedBirthday || isNaN(parsedBirthday.getTime())) {
       return res.status(400).json({ id: 400, message: 'Invalid birthday format' });
     }
 
-    const newUser = await User.create({
-      id: userId,
-      first_name,
-      last_name,
-      birthday: parsedBirthday
-    });
-
-    return res.status(201).json(newUser);
+    //++c: Create new user document
+    const newUser = await User.create({ id: userId, first_name, last_name, birthday: parsedBirthday });
+    res.status(201).json(newUser);
   } catch (err) {
     console.error(err);
-    return res.status(400).json({ id: 400, message: err.message });
+    res.status(400).json({ id: 400, message: err.message });
   }
 });
 
-/*
- * GET /api/users/:id
- * Returns user details and total costs.
- */
+//++c: Route - Get User Details (first_name,last_name,id,total)
 app.get('/api/users/:id', async (req, res) => {
-  logger.info('Endpoint accessed: GET /api/users/:id');
-
   try {
-    const userId = Number(req.params.id);
+    const userId = parseInt(req.params.id, 10);
+
     const user = await User.findOne({ id: userId });
+    //++c: If user id does not exist, return error JSON (id+message)
+    if (!user) return res.status(404).json({ id: 404, message: 'User not found' });
 
-    if (!user) {
-      return res.status(404).json({ id: 404, message: 'User not found' });
-    }
-
+    //++c: Compute total costs of the user
     const costs = await Cost.find({ userid: userId });
-    const total = costs.reduce((sum, c) => sum + c.sum, 0);
+    let total = 0;
+    costs.forEach((c) => { total += c.sum; });
 
-    return res.json({
-      first_name: user.first_name,
-      last_name: user.last_name,
-      id: user.id,
-      total
-    });
+    res.json({ first_name: user.first_name, last_name: user.last_name, id: user.id, total });
   } catch (err) {
     console.error(err);
-    return res.status(400).json({ id: 400, message: err.message });
+    res.status(400).json({ id: 400, message: err.message });
   }
 });
 
-/*
- * GET /api/users
- * Returns all users.
- */
+//++c: Route - List all users (GET /api/users)
 app.get('/api/users', async (req, res) => {
-  logger.info('Endpoint accessed: GET /api/users');
-
   try {
-    const users = await User.find({}).select('-_id -__v');
-    return res.json(users);
+    const users = await User.find({}).select('-__v -_id');
+    res.json(users);
   } catch (err) {
     console.error(err);
-    return res.status(400).json({ id: 400, message: err.message });
+    res.status(400).json({ id: 400, message: err.message });
   }
 });
 
-/*
- * DELETE /removeuser
- * Required for automated tests cleanup.
- */
+//++c: Route - Delete user (used by unit tests cleanup)
 app.delete('/removeuser', async (req, res) => {
-  logger.info('Endpoint accessed: DELETE /removeuser');
-
   try {
     await User.deleteMany({ id: Number(req.body.id) });
-    return res.json({ status: 'success' });
+    res.json({ status: 'success' });
   } catch (err) {
     console.error(err);
-    return res.status(400).json({ id: 400, message: err.message });
+    res.status(400).json({ id: 400, message: err.message });
   }
 });
 
-const PORT = process.env.PORT_USERS || 3001;
+//++c: Deployment compatibility - prefer process.env.PORT
+const PORT = process.env.PORT || process.env.PORT_USERS || 3001;
+
 connectDb().then(() => {
   app.listen(PORT, () => console.log(`Users Service running on port ${PORT}`));
 });
