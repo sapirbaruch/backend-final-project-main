@@ -1,102 +1,71 @@
 # Cost Manager RESTful Web Services
+Final Project – Asynchronous Server-Side Development
 
-This project contains four microservices (Users, Costs, Logs, Admin) implemented with Express.js and MongoDB, plus a single all-in-one entry point.
+This project implements a RESTful backend for managing users and cost items.
+The system is built using Node.js, Express, MongoDB (Atlas), and Pino.
+It is divided into four separate processes: Users, Costs, Logs, and Admin.
 
-## Supported run modes
 
-- Single-process (combined) mode — serves all routes on one server (port 3000 by default):
-  - Entry point: `src/app.js`
-  - Start: `npm start` (or `PORT=3000 npm start`)
+## Architecture
 
-- Multi-process (microservices) mode — runs each service separately on its own port (recommended for testing):
-  - Users: `src/users/app.js` (default port 3001)
-  - Costs: `src/costs/app.js` (default port 3002)
-  - Logs:  `src/logs/app.js`  (default port 3003)
-  - Admin: `src/admin/app.js` (default port 3004)
-  - Start all: `npm run start:all`
-  - Start a single service: `npm run start:users` / `npm run start:costs` / `npm run start:logs` / `npm run start:admin`
+The system is implemented as four separate Node.js processes,
+each running on a different port:
 
-## Prerequisites
+- Users Service (port 3001)
+- Costs Service (port 3002)
+- Logs Service (port 3003)
+- Admin Service (port 3004)
 
-Before running the project, ensure that you have the following prerequisites installed:
+Each service runs as an independent Express application.
 
-- Node.js (v16+ recommended)
-- npm
-- MongoDB (Atlas or local)
-- Python 3 + venv (only for running the provided pytest suite)
+## Environment Variables
 
-## Setup
+The project uses a `.env` file with the following variable:
 
-Follow the steps below to set up the project:
+MONGODB_URI=<MongoDB Atlas connection string>
 
-1. Copy the example env and fill values (do not commit your real .env):
 
-    ```bash
-    cp .env.example .env
-    # Edit .env and set MONGODB_URI to your Atlas or local connection string
-    ```
+## API Endpoints
 
-2. Install Node dependencies:
+### Users Service (port 3001)
+- POST /api/add – Add a new user
+- GET /api/users – List all users
+- GET /api/users/:id – Get user details
+- DELETE /removeuser – Remove user (used for tests)
 
-    ```bash
-    npm install
-    ```
+### Costs Service (port 3002)
+- POST /api/add – Add a cost item
+- GET /api/report – Get monthly report
+- DELETE /removecost – Remove cost (tests)
+- DELETE /removereport – Remove report (tests)
 
-3. (Optional) Prepare Python test environment and install test deps:
+### Logs Service (port 3003)
+- GET /api/logs – List all logs
 
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r tests/requirements.txt
-    ```
+### Admin Service (port 3004)
+- GET /api/about – Get developers team
 
-## Running
+## Computed Design Pattern
 
-Follow the instructions below to run the project:
-
-- Run combined server (single port 3000):
-
-    ```bash
-    npm start
-    # then open http://localhost:3000
-    ```
-
-- Run all microservices (each in its port):
-
-    ```bash
-    npm run start:all
-    ```
-
-- Run a single microservice (example: costs):
-
-    ```bash
-    npm run start:costs
-    ```
+Monthly reports are computed dynamically from the costs collection.
+If a report is requested for a past month, it is stored in the reports
+collection to avoid recomputation.
+Reports for the current or future month are generated on demand.
 
 ## Testing
 
-With the Python venv activated (see Setup step 3):
+The project was tested using automated tests written with pytest.
+All endpoints were verified locally using the provided test scripts.
 
-```bash
-pytest tests/test_api_local.py
-```
+## Running the Project Locally
 
-## Notes and tips
+1. Install dependencies:
+   npm install
 
-- The tests expect the services to be reachable at these ports (when running in microservices mode):
-  - Users: http://localhost:3001
-  - Costs: http://localhost:3002
-  - Logs:  http://localhost:3003
-  - Admin: http://localhost:3004
+2. Create a .env file with MONGODB_URI
 
-- If you want the app reachable at `http://localhost:3000` use the combined entrypoint (`src/app.js`) with `npm start`.
-
-- Do not commit your real `.env` file. Use `.env.example` in the repository. A `.gitignore` file is included to ignore `.env`, `node_modules`, etc.
-
-- If you encounter `EADDRINUSE` errors, stop other running instances using `lsof -iTCP:<port> -sTCP:LISTEN` and `kill <PID>` or restart your machine.
-
-- For grading: ensure `.env` does not contain secrets, `models/` contains the Mongoose schemas, and the required endpoints exist and follow the documented names (/api/add, /api/report, /api/users, /api/logs, /api/about, /removeuser, /removereport, /removecost).
-
-If you want, I can also:
-- Run a quick consistency check across endpoints and update README examples (I already added the most common commands), or
-- Produce a short script to start services in the background and wait for Mongo to become available.
+3. Run the services (example):
+   node src/users/app.js
+   node src/costs/app.js
+   node src/logs/app.js
+   node src/admin/app.js
