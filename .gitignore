@@ -7,7 +7,6 @@ yarn-error.log*
 
 # Env / secrets
 .env
-.env.*
 
 # Python
 venv/

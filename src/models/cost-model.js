@@ -7,19 +7,26 @@ const costSchema = new mongoose.Schema({
   // Requirement: userid must be a Number
   userid: {
     type: Number,
-    required: [true, 'Cost must have a user id'],
+    required: true,
     index: true
   },
 
-  // When not provided, server uses request time (now)
-  createdAt: { type: Date, default: Date.now, index: true },
+  // Server-controlled creation date
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true
+  },
 
-  // Keep these for fast reporting, but compute them server-side
+  // Stored for fast monthly reporting
   year: { type: Number, index: true },
   month: { type: Number, index: true },
   day: { type: Number },
 
-  description: { type: String, required: true },
+  description: {
+    type: String,
+    required: true
+  },
 
   category: {
     type: String,
@@ -28,41 +35,32 @@ const costSchema = new mongoose.Schema({
   },
 
   /*
-   * sum is stored as Number in Mongoose, which is persisted as BSON Double in MongoDB.
-   * This satisfies the project requirement for Double type.
+   * sum is stored as Number in Mongoose,
+   * which is persisted as BSON Double in MongoDB.
    */
   sum: {
     type: Number,
     required: true,
-    validate: {
-      validator: (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0,
-      message: 'sum must be a non-negative number'
-    }
+    min: 0
   }
 });
 
+// Pre-save hook for auto-increment id and date breakdown
 costSchema.pre('save', async function (next) {
   try {
-    // Auto-increment id
     if (!this.id) {
       this.id = await getNextSequenceValue('Cost', 'id');
     }
 
-    // Compute year/month/day from createdAt (server-trusted)
-    const d = this.createdAt ? new Date(this.createdAt) : new Date();
-    this.createdAt = d;
-
+    const d = new Date(this.createdAt);
     this.year = d.getFullYear();
-    this.month = d.getMonth() + 1; // 1-12
-    this.day = d.getDate();        // 1-31
+    this.month = d.getMonth() + 1;
+    this.day = d.getDate();
 
     next();
-  } catch (e) {
-    next(e);
+  } catch (err) {
+    next(err);
   }
 });
 
-const Cost = mongoose.model('Cost', costSchema);
-Cost.createIndexes();
-
-module.exports = Cost;
+module.exports = mongoose.model('Cost', costSchema);
