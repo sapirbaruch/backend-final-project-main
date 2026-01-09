@@ -34,10 +34,10 @@ const connectDb = async () => {
       throw new Error('Missing MONGODB_URI');
     }
 
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+  await mongoose.connect(MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000
+});
+
 
     console.log('MongoDB connected successfully');
   } catch (error) {
