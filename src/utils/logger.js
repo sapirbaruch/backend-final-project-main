@@ -1,6 +1,6 @@
 const pino = require('pino');
 const os = require('os');
-const Log = require('../models/logModel');
+const Log = require('../models/log_model');
 
 const logger = pino({
   level: 'info',

@@ -1,7 +1,7 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDb = require('../utils/connectDb');
-const Log = require('../models/logModel');
+const connectDb = require('../utils/connect_db');
+const Log = require('../models/log_model');
 const { logMiddleware } = require('../utils/logger');
 
 dotenv.config();
@@ -9,10 +9,10 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-//++c: Log every HTTP request (required)
+//Log every HTTP request (required)
 app.use(logMiddleware);
 
-//++c: Route - Get all logs (GET /api/logs)
+//Route - Get all logs (GET /api/logs)
 app.get('/api/logs', async (req, res) => {
   try {
     const logs = await Log.find({});
@@ -23,7 +23,7 @@ app.get('/api/logs', async (req, res) => {
   }
 });
 
-//++c: Deployment compatibility - prefer process.env.PORT
+//Deployment compatibility - prefer process.env.PORT
 const PORT = process.env.PORT || process.env.PORT_LOGS || 3003;
 
 connectDb().then(() => {

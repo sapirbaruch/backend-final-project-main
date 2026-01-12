@@ -1,29 +1,29 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDb = require('../utils/connectDb');
+const connectDb = require('../utils/connect_db');
 const { logMiddleware } = require('../utils/logger');
-const Cost = require('../models/costModel');
-const Report = require('../models/reportModel');
+const Cost = require('../models/cost_model');
+const Report = require('../models/report_model');
 const getOrCreateReport = require('../utils/getOrCreateReport');
-const User = require('../models/userModel');
+const User = require('../models/user_model');
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-//++c: Log every HTTP request (required: logs written for every request)
+//Log every HTTP request (required: logs written for every request)
 app.use(logMiddleware);
 
-//++c: Route - Add a new cost item to the costs collection
+//Route - Add a new cost item to the costs collection
 app.post('/api/add', async (req, res) => {
   try {
     const { description, category, userid, user_id, sum, createdAt } = req.body;
 
-    //++c: Accept both 'userid' and 'user_id' (tests might send user_id)
+    //Accept both 'userid' and 'user_id' (tests might send user_id)
     const userIdRaw = userid ?? user_id;
 
-    //++c: Validate required fields (project requirement: validation for incoming data)
+    //Validate required fields (project requirement: validation for incoming data)
     if (!description || !category || userIdRaw === undefined || sum === undefined) {
       return res.status(400).json({ id: 400, message: 'Missing required fields' });
     }
@@ -31,24 +31,24 @@ app.post('/api/add', async (req, res) => {
     const numericUserId = Number(userIdRaw);
     const numericSum = Number(sum);
 
-    //++c: Validate numeric fields
+    //Validate numeric fields
     if (!Number.isFinite(numericUserId) || !Number.isFinite(numericSum)) {
       return res.status(400).json({ id: 400, message: 'Invalid numeric fields' });
     }
 
-    //++c: Validate category using the required allowed list
+    //Validate category using the required allowed list
     const allowedCategories = ['food', 'health', 'housing', 'sports', 'education'];
     if (!allowedCategories.includes(category)) {
       return res.status(400).json({ id: 400, message: 'Invalid category' });
     }
 
-    //++c: Requirement - do not allow adding a cost for a non-existing user
+    //Requirement - do not allow adding a cost for a non-existing user
     const userExists = await User.findOne({ id: numericUserId });
     if (!userExists) {
       return res.status(400).json({ id: 400, message: 'User not found' });
     }
 
-    //++c: Requirement - reject costs with dates in the past
+    //Requirement - reject costs with dates in the past
     let parsedCreatedAt;
     if (createdAt !== undefined && createdAt !== null && createdAt !== '') {
       parsedCreatedAt = new Date(createdAt);
@@ -63,7 +63,7 @@ app.post('/api/add', async (req, res) => {
       }
     }
 
-    //++c: Create cost document (property names must match the costs collection schema)
+    //Create cost document (property names must match the costs collection schema)
     const costItem = await Cost.create({
       description,
       category,
@@ -72,19 +72,26 @@ app.post('/api/add', async (req, res) => {
       ...(parsedCreatedAt ? { createdAt: parsedCreatedAt } : {})
     });
 
-    return res.status(201).json(costItem);
+    return res.status(201).json(costItem);return res.status(201).json({
+      description: costItem.description,
+      category: costItem.category,
+      userid: costItem.userid,
+      sum: costItem.sum,
+      createdAt: costItem.createdAt
+});
+
   } catch (err) {
     console.error(err);
     return res.status(400).json({ id: 400, message: err.message });
   }
 });
 
-//++c: Route - Get monthly report for a user/year/month
+//Route - Get monthly report for a user/year/month
 app.get('/api/report', async (req, res) => {
   const { user_id, id, year, month } = req.query;
 
   try {
-    //++c: Parse and validate query params
+    //Parse and validate query params
     const userId = Number(user_id || id);
     const numericYear = Number(year);
     const numericMonth = Number(month);
@@ -93,10 +100,10 @@ app.get('/api/report', async (req, res) => {
       return res.status(400).json({ id: 400, message: 'Missing or invalid query parameters' });
     }
 
-    //++c: Use Computed Design Pattern helper (compute on demand + cache past months)
+    //Use Computed Design Pattern helper (compute on demand + cache past months)
     const report = await getOrCreateReport(userId, numericYear, numericMonth);
 
-    //++c: Return only the required fields (avoid _id/__v)
+    //Return only the required fields (avoid _id/__v)
     const plain = (report && typeof report.toObject === 'function') ? report.toObject() : report;
 
     return res.json({
@@ -111,7 +118,7 @@ app.get('/api/report', async (req, res) => {
   }
 });
 
-//++c: Route - Delete cost (used by unit tests cleanup)
+//Route - Delete cost (used by unit tests cleanup)
 app.delete('/removecost', async (req, res) => {
   try {
     const idToDelete = req.body.id || req.body._id;
@@ -123,7 +130,7 @@ app.delete('/removecost', async (req, res) => {
   }
 });
 
-//++c: Route - Delete report (used by unit tests cleanup)
+//Route - Delete report (used by unit tests cleanup)
 app.delete('/removereport', async (req, res) => {
   try {
     const { user_id, year, month } = req.body;
@@ -135,7 +142,7 @@ app.delete('/removereport', async (req, res) => {
   }
 });
 
-//++c: Deployment compatibility - prefer process.env.PORT (cloud providers)
+//Deployment compatibility - prefer process.env.PORT (cloud providers)
 const PORT = process.env.PORT || process.env.PORT_COSTS || 3002;
 
 connectDb().then(() => {

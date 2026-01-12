@@ -1,5 +1,5 @@
-const Report = require('../models/reportModel');
-const Cost = require('../models/costModel');
+const Report = require('../models/report_model');
+const Cost = require('../models/cost_model');
 
 /*
  * Computed Design Pattern (Project Requirement)
@@ -14,27 +14,27 @@ const Cost = require('../models/costModel');
  */
 
 async function getOrCreateReport(userId, year, month) {
-  //++c: Coerce input to numbers to avoid string/number mismatch
+  //Coerce input to numbers to avoid string/number mismatch
   const uid = Number(userId);
   const y = Number(year);
   const m = Number(month);
 
-  //++c: Validate parameters
+  //Validate parameters
   if (isNaN(uid) || isNaN(y) || isNaN(m)) {
     throw new Error('Invalid report parameters');
   }
 
-  //++c: If cached report exists (past month), return it
+  //If cached report exists (past month), return it
   let report = await Report.findOne({ userid: uid, year: y, month: m });
 
   if (!report) {
-    //++c: Compute report from costs collection
+    //Compute report from costs collection
     const costs = await Cost.find({ userid: uid, year: y, month: m });
 
-    //++c: Required categories list
+    //Required categories list
     const categories = ['food', 'health', 'housing', 'sports', 'education'];
 
-    //++c: Required JSON structure: "costs" is an array of category objects
+    //Required JSON structure: "costs" is an array of category objects
     const formattedCosts = categories.map((cat) => ({
       [cat]: costs
         .filter((c) => c.category === cat)
@@ -57,7 +57,7 @@ async function getOrCreateReport(userId, year, month) {
       (y < now.getFullYear()) ||
       (y === now.getFullYear() && m < (now.getMonth() + 1));
 
-    //++c: Cache only if the requested month has already passed
+    //Cache only if the requested month has already passed
     if (isPastMonth) {
       await report.save();
     }

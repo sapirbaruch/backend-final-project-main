@@ -1,37 +1,37 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDb = require('../utils/connectDb');
+const connectDb = require('../utils/connect_db');
 const { logMiddleware } = require('../utils/logger');
-const User = require('../models/userModel');
-const Cost = require('../models/costModel');
+const User = require('../models/user_model');
+const Cost = require('../models/cost_model');
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-//++c: Log every HTTP request (required)
+//Log every HTTP request (required)
 app.use(logMiddleware);
 
-//++c: Route - Add User
+//Route - Add User
 app.post('/api/add', async (req, res) => {
   try {
     const { id, first_name, last_name, birthday } = req.body;
 
-    //++c: Validate required fields
+    //Validate required fields
     if (!id || !first_name || !last_name || !birthday) {
       return res.status(400).json({ id: 400, message: 'Missing required fields' });
     }
 
     const userId = Number(id);
-    //++c: Validate id is numeric
+    //Validate id is numeric
     if (isNaN(userId)) return res.status(400).json({ id: 400, message: 'Invalid id' });
 
-    //++c: Prevent duplicate users by id
+    //Prevent duplicate users by id
     const exists = await User.findOne({ id: userId });
     if (exists) return res.status(400).json({ id: 400, message: 'User already exists' });
 
-    //++c: Parse birthday into Date (supports different string formats)
+    //Parse birthday into Date (supports different string formats)
     let parsedBirthday;
     if (birthday instanceof Date) {
       parsedBirthday = birthday;
@@ -50,25 +50,31 @@ app.post('/api/add', async (req, res) => {
       return res.status(400).json({ id: 400, message: 'Invalid birthday format' });
     }
 
-    //++c: Create new user document
+    //Create new user document
     const newUser = await User.create({ id: userId, first_name, last_name, birthday: parsedBirthday });
-    res.status(201).json(newUser);
+    return res.status(201).json({
+      id: newUser.id,
+      first_name: newUser.first_name,
+      last_name: newUser.last_name,
+      birthday: newUser.birthday
+});
+
   } catch (err) {
     console.error(err);
     res.status(400).json({ id: 400, message: err.message });
   }
 });
 
-//++c: Route - Get User Details (first_name,last_name,id,total)
+//Route - Get User Details (first_name,last_name,id,total)
 app.get('/api/users/:id', async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
 
     const user = await User.findOne({ id: userId });
-    //++c: If user id does not exist, return error JSON (id+message)
+    //If user id does not exist, return error JSON (id+message)
     if (!user) return res.status(404).json({ id: 404, message: 'User not found' });
 
-    //++c: Compute total costs of the user
+    //Compute total costs of the user
     const costs = await Cost.find({ userid: userId });
     let total = 0;
     costs.forEach((c) => { total += c.sum; });
@@ -80,7 +86,7 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-//++c: Route - List all users (GET /api/users)
+//Route - List all users (GET /api/users)
 app.get('/api/users', async (req, res) => {
   try {
     const users = await User.find({}).select('-__v -_id');
@@ -91,7 +97,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-//++c: Route - Delete user (used by unit tests cleanup)
+//Route - Delete user (used by unit tests cleanup)
 app.delete('/removeuser', async (req, res) => {
   try {
     await User.deleteMany({ id: Number(req.body.id) });
@@ -102,7 +108,7 @@ app.delete('/removeuser', async (req, res) => {
   }
 });
 
-//++c: Deployment compatibility - prefer process.env.PORT
+//Deployment compatibility - prefer process.env.PORT
 const PORT = process.env.PORT || process.env.PORT_USERS || 3001;
 
 connectDb().then(() => {

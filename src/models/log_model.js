@@ -1,4 +1,4 @@
-// src/models/log-model.js
+// src/models/logodel.js
 const mongoose = require('mongoose');
 
 const logSchema = new mongoose.Schema({
