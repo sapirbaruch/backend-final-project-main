@@ -1,4 +1,4 @@
-const Counter = require('../models/counter-model');
+const Counter = require('../models/counterModel');
 
 /*
  * Auto-Increment Utility

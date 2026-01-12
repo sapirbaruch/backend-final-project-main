@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const getNextSequenceValue = require('../utils/auto-increment');
+const getNextSequenceValue = require('../utils/autoIncrement');
 
 const costSchema = new mongoose.Schema({
   id: { type: Number, unique: true },

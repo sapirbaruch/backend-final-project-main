@@ -1,9 +1,9 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDb = require('../utils/connect-db');
+const connectDb = require('../utils/connectDb');
 const { logMiddleware } = require('../utils/logger');
-const User = require('../models/user-model');
-const Cost = require('../models/cost-model');
+const User = require('../models/userModel');
+const Cost = require('../models/costModel');
 
 dotenv.config();
 

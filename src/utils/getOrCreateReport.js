@@ -1,5 +1,5 @@
-const Report = require('../models/report-model');
-const Cost = require('../models/cost-model');
+const Report = require('../models/reportModel');
+const Cost = require('../models/costModel');
 
 /*
  * Computed Design Pattern (Project Requirement)

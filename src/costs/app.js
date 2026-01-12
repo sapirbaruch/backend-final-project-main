@@ -1,10 +1,10 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDb = require('../utils/connect-db');
+const connectDb = require('../utils/connectDb');
 const { logMiddleware } = require('../utils/logger');
 const Cost = require('../models/cost-model');
 const Report = require('../models/report-model');
-const getOrCreateReport = require('../utils/get-or-create-report');
+const getOrCreateReport = require('../utils/getOrCreateReport');
 const User = require('../models/user-model');
 
 dotenv.config();
