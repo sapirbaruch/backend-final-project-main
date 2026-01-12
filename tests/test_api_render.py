@@ -87,6 +87,8 @@ def test_costs_service_add_expense():
     assert r.status_code == 201
 
     body = r.json()
+    print("1234")
+    print(body)
     # store _id for cleanup
     assert "_id" in body
     _created_cost_ids.append(body["_id"])

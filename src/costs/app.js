@@ -12,18 +12,18 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-//Log every HTTP request (required: logs written for every request)
+//++c: Log every HTTP request (required: logs written for every request)
 app.use(logMiddleware);
 
-//Route - Add a new cost item to the costs collection
+//++c: Route - Add a new cost item to the costs collection
 app.post('/api/add', async (req, res) => {
   try {
     const { description, category, userid, user_id, sum, createdAt } = req.body;
 
-    //Accept both 'userid' and 'user_id' (tests might send user_id)
+    //++c: Accept both 'userid' and 'user_id' (tests might send user_id)
     const userIdRaw = userid ?? user_id;
 
-    //Validate required fields (project requirement: validation for incoming data)
+    //++c: Validate required fields (project requirement: validation for incoming data)
     if (!description || !category || userIdRaw === undefined || sum === undefined) {
       return res.status(400).json({ id: 400, message: 'Missing required fields' });
     }
@@ -31,24 +31,24 @@ app.post('/api/add', async (req, res) => {
     const numericUserId = Number(userIdRaw);
     const numericSum = Number(sum);
 
-    //Validate numeric fields
+    //++c: Validate numeric fields
     if (!Number.isFinite(numericUserId) || !Number.isFinite(numericSum)) {
       return res.status(400).json({ id: 400, message: 'Invalid numeric fields' });
     }
 
-    //Validate category using the required allowed list
+    //++c: Validate category using the required allowed list
     const allowedCategories = ['food', 'health', 'housing', 'sports', 'education'];
     if (!allowedCategories.includes(category)) {
       return res.status(400).json({ id: 400, message: 'Invalid category' });
     }
 
-    //Requirement - do not allow adding a cost for a non-existing user
+    //++c: Requirement - do not allow adding a cost for a non-existing user
     const userExists = await User.findOne({ id: numericUserId });
     if (!userExists) {
       return res.status(400).json({ id: 400, message: 'User not found' });
     }
 
-    //Requirement - reject costs with dates in the past
+    //++c: Requirement - reject costs with dates in the past
     let parsedCreatedAt;
     if (createdAt !== undefined && createdAt !== null && createdAt !== '') {
       parsedCreatedAt = new Date(createdAt);
@@ -63,7 +63,7 @@ app.post('/api/add', async (req, res) => {
       }
     }
 
-    //Create cost document (property names must match the costs collection schema)
+    //++c: Create cost document (property names must match the costs collection schema)
     const costItem = await Cost.create({
       description,
       category,
@@ -72,27 +72,25 @@ app.post('/api/add', async (req, res) => {
       ...(parsedCreatedAt ? { createdAt: parsedCreatedAt } : {})
     });
 
-    return res.status(201).json({
-      description: costItem.description,
-      category: costItem.category,
-      userid: costItem.userid,
-      sum: costItem.sum,
-      createdAt: costItem.createdAt
-});
-
-
+    //++c: Return the saved document so _id and computed date parts are included
+    const plain = costItem.toObject({ versionKey: false, virtuals: false });
+    // Ensure _id is included (Mongoose should include it by default, but explicitly ensure it)
+    if (!plain._id) {
+      plain._id = costItem._id;
+    }
+    return res.status(201).json(plain);
   } catch (err) {
     console.error(err);
     return res.status(400).json({ id: 400, message: err.message });
   }
 });
 
-//Route - Get monthly report for a user/year/month
+//++c: Route - Get monthly report for a user/year/month
 app.get('/api/report', async (req, res) => {
   const { user_id, id, year, month } = req.query;
 
   try {
-    //Parse and validate query params
+    //++c: Parse and validate query params
     const userId = Number(user_id || id);
     const numericYear = Number(year);
     const numericMonth = Number(month);
@@ -101,10 +99,10 @@ app.get('/api/report', async (req, res) => {
       return res.status(400).json({ id: 400, message: 'Missing or invalid query parameters' });
     }
 
-    //Use Computed Design Pattern helper (compute on demand + cache past months)
+    //++c: Use Computed Design Pattern helper (compute on demand + cache past months)
     const report = await getOrCreateReport(userId, numericYear, numericMonth);
 
-    //Return only the required fields (avoid _id/__v)
+    //++c: Return only the required fields (avoid _id/__v)
     const plain = (report && typeof report.toObject === 'function') ? report.toObject() : report;
 
     return res.json({
@@ -119,7 +117,7 @@ app.get('/api/report', async (req, res) => {
   }
 });
 
-//Route - Delete cost (used by unit tests cleanup)
+//++c: Route - Delete cost (used by unit tests cleanup)
 app.delete('/removecost', async (req, res) => {
   try {
     const idToDelete = req.body.id || req.body._id;
@@ -131,7 +129,7 @@ app.delete('/removecost', async (req, res) => {
   }
 });
 
-//Route - Delete report (used by unit tests cleanup)
+//++c: Route - Delete report (used by unit tests cleanup)
 app.delete('/removereport', async (req, res) => {
   try {
     const { user_id, year, month } = req.body;
@@ -143,7 +141,7 @@ app.delete('/removereport', async (req, res) => {
   }
 });
 
-//Deployment compatibility - prefer process.env.PORT (cloud providers)
+//++c: Deployment compatibility - prefer process.env.PORT (cloud providers)
 const PORT = process.env.PORT || process.env.PORT_COSTS || 3002;
 
 connectDb().then(() => {
