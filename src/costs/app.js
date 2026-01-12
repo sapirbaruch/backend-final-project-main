@@ -4,7 +4,7 @@ const connectDb = require('../utils/connect_db');
 const { logMiddleware } = require('../utils/logger');
 const Cost = require('../models/cost_model');
 const Report = require('../models/report_model');
-const getOrCreateReport = require('../utils/getOrCreateReport');
+const getOrCreateReport = require('../utils/get_or_create_report');
 const User = require('../models/user_model');
 
 dotenv.config();
@@ -72,13 +72,14 @@ app.post('/api/add', async (req, res) => {
       ...(parsedCreatedAt ? { createdAt: parsedCreatedAt } : {})
     });
 
-    return res.status(201).json(costItem);return res.status(201).json({
+    return res.status(201).json({
       description: costItem.description,
       category: costItem.category,
       userid: costItem.userid,
       sum: costItem.sum,
       createdAt: costItem.createdAt
 });
+
 
   } catch (err) {
     console.error(err);

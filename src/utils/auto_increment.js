@@ -1,7 +1,7 @@
-const Counter = require('../models/counterModel');
+const Counter = require('../models/counter_model');
 
 /*
- * Auto-Increment Utility
+ * Auto-uncrement Utility
  *
  * MongoDB does not support auto-increment fields natively.
  * This helper implements an auto-increment mechanism using a dedicated

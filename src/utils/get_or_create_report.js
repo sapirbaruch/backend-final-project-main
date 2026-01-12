@@ -66,4 +66,4 @@ async function getOrCreateReport(userId, year, month) {
   return report;
 }
 
-module.exports = getOrCreateReport;
+module.exports = get_or_create_report;
