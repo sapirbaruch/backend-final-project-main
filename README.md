@@ -20,9 +20,10 @@ Each service runs as an independent Express application.
 
 ## Environment Variables
 
-The project uses a `.env` file with the following variable:
+The project uses a `.env` file with the following variables:
 
-MONGODB_URI=<MongoDB Atlas connection string>
+- MONGODB_URI=<MongoDB Atlas connection string>
+- TEAM_MEMBERS="First Last;First Last" (used by /api/about; names are NOT stored in DB)
 
 
 ## API Endpoints
@@ -31,13 +32,12 @@ MONGODB_URI=<MongoDB Atlas connection string>
 - POST /api/add – Add a new user
 - GET /api/users – List all users
 - GET /api/users/:id – Get user details
-- DELETE /removeuser – Remove user (used for tests)
+  - (Tests only) DELETE /removeuser (available only when NODE_ENV=test)
 
 ### Costs Service (port 3002)
 - POST /api/add – Add a cost item
 - GET /api/report – Get monthly report
-- DELETE /removecost – Remove cost (tests)
-- DELETE /removereport – Remove report (tests)
+  - (Tests only) DELETE /removecost and DELETE /removereport (available only when NODE_ENV=test)
 
 ### Logs Service (port 3003)
 - GET /api/logs – List all logs
@@ -55,7 +55,9 @@ Reports for the current or future month are generated on demand.
 ## Testing
 
 The project was tested using automated tests written with pytest.
-All endpoints were verified locally using the provided test scripts.
+To enable the optional cleanup endpoints used by the tests, run the services with:
+
+NODE_ENV=test
 
 ## Running the Project Locally
 

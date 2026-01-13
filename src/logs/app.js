@@ -9,13 +9,13 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-//Log every HTTP request (required)
+// Log every request
 app.use(logMiddleware);
 
-//Route - Get all logs (GET /api/logs)
+// Retrieve all logs
 app.get('/api/logs', async (req, res) => {
   try {
-    const logs = await Log.find({});
+    const logs = await Log.find({}).select('-__v');
     res.json(logs);
   } catch (err) {
     console.error(err);
@@ -23,7 +23,6 @@ app.get('/api/logs', async (req, res) => {
   }
 });
 
-//Deployment compatibility - prefer process.env.PORT
 const PORT = process.env.PORT || process.env.PORT_LOGS || 3003;
 
 connectDb().then(() => {

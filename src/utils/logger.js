@@ -10,23 +10,29 @@ const logger = pino({
 });
 
 /*
- * Logs every HTTP request and saves it to MongoDB.
- */
+ Logs every HTTP request and persists it in MongoDB.
+ This is done in a non-blocking way so the DB cannot slow down the endpoints.
+*/
 const logMiddleware = (req, res, next) => {
-  res.on('finish', async () => {
-    try {
-      logger.info(`${req.method} ${req.originalUrl} ${res.statusCode}`);
+  const startTime = Date.now();
 
-      await Log.create({
-        level: 'info',
-        time: new Date(),
-        msg: `${req.method} ${req.originalUrl}`,
-        pid: process.pid,
-        hostname: os.hostname()
-      });
-    } catch (err) {
-      console.error('Logging failed:', err);
-    }
+  res.on('finish', () => {
+    const responseTimeMs = Date.now() - startTime;
+
+    logger.info(`${req.method} ${req.originalUrl} ${res.statusCode} ${responseTimeMs}ms`);
+
+    // Non-blocking DB write: never delay the HTTP response because of logging
+    Log.create({
+      level: 'info',
+      time: new Date(),
+      msg: `${req.method} ${req.originalUrl}`,
+      pid: process.pid,
+      hostname: os.hostname(),
+      statusCode: res.statusCode,
+      responseTimeMs
+    }).catch((err) => {
+      console.error('Failed to write log:', err);
+    });
   });
 
   next();

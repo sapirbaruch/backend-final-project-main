@@ -14,11 +14,11 @@ user_data = {
     "id": 111111,
     "first_name": "bot",
     "last_name": "bot",
-    "birthday": "1999-03-12"  # ISO safe format
+    "birthday": "1999-03-12"  # ISO format (safe)
 }
 
 expense_data = {
-    # tests may send user_id; your server accepts user_id or userid
+    # The server accepts either user_id or userid
     "user_id": user_data["id"],
     "year": today.year,
     "month": today.month,
@@ -28,12 +28,12 @@ expense_data = {
     "sum": 100
 }
 
-# We will store created IDs to cleanup later
-_created_cost_ids = []
-
 
 def _safe_request(fn, *args, **kwargs):
-    """++c Safe HTTP wrapper to avoid crashing teardown on network errors."""
+    """
+    Safe HTTP wrapper: prevents tests from crashing on network/connection errors.
+    Returns None on exception.
+    """
     try:
         return fn(*args, **kwargs)
     except Exception:
@@ -41,35 +41,21 @@ def _safe_request(fn, *args, **kwargs):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def setup_teardown():
-    """/*
-    Computed/cache behavior can persist DB state across runs.
-    We ensure clean start and full cleanup at the end of the session.
-    */"""
+def setup_once():
+    """
+    Session setup:
+    - Ensure the test user exists (create it if missing).
+    We intentionally do NOT delete anything (no /remove endpoints are required).
+    """
 
-    # CLEAN START: remove user if exists (ignore errors)
-    _safe_request(requests.delete, f"{USER_SERVICE_URL}/removeuser", json={"id": user_data["id"]}, timeout=5)
+    r = _safe_request(requests.post, f"{USER_SERVICE_URL}/api/add", json=user_data, timeout=5)
 
-    # SETUP: create the user
-    r = requests.post(f"{USER_SERVICE_URL}/api/add", json=user_data, timeout=5)
-    assert r.status_code in (200, 201)
+    # If user already exists, some implementations return 400.
+    # For our tests, that's OK — we just need the user to exist.
+    if r is not None:
+        assert r.status_code in (200, 201, 400)
 
     yield  # run tests
-
-    # TEARDOWN: remove report for this month (ignore errors)
-    _safe_request(
-        requests.delete,
-        f"{COST_SERVICE_URL}/removereport",
-        json={"user_id": user_data["id"], "year": expense_data["year"], "month": expense_data["month"]},
-        timeout=5
-    )
-
-    # TEARDOWN: remove created costs by _id
-    for cid in _created_cost_ids:
-        _safe_request(requests.delete, f"{COST_SERVICE_URL}/removecost", json={"_id": cid}, timeout=5)
-
-    # TEARDOWN: remove user
-    _safe_request(requests.delete, f"{USER_SERVICE_URL}/removeuser", json={"id": user_data["id"]}, timeout=5)
 
 
 def test_users_service_add_user_and_list():
@@ -87,13 +73,10 @@ def test_costs_service_add_expense():
     assert r.status_code == 201
 
     body = r.json()
-    # store _id for cleanup
-    assert "_id" in body
-    _created_cost_ids.append(body["_id"])
-
     assert body.get("userid") == user_data["id"]
     assert body.get("category") == expense_data["category"]
     assert body.get("description") == expense_data["description"]
+    assert "sum" in body
 
 
 def test_costs_service_get_report():
@@ -107,16 +90,16 @@ def test_costs_service_get_report():
     assert data.get("year") == expense_data["year"]
     assert data.get("month") == expense_data["month"]
 
-    # Should have the 5 required categories only
+    # Must include the 5 required categories
     assert "costs" in data
     assert isinstance(data["costs"], list)
 
-    # Verify required categories exist
     required = {"food", "health", "housing", "sports", "education"}
     present = set()
     for obj in data["costs"]:
         for k in obj.keys():
             present.add(k)
+
     assert required.issubset(present)
 
 
@@ -127,7 +110,8 @@ def test_users_service_get_user_details_total():
     body = r.json()
     assert body.get("id") == user_data["id"]
     assert "total" in body
-    # total should be >= sum we added (exact depends on previous DB if not cleaned)
+
+    # Total should be at least the last added expense (could be higher if DB already has data)
     assert body["total"] >= expense_data["sum"]
 
 
