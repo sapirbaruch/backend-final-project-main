@@ -29,37 +29,49 @@ const addCostHandler = async (req, res) => {
       return res.status(400).json({ id: 400, message: 'Missing required fields' });
     }
 
+    
     const numericUserId = Number(rawUserId);
+   
     const numericSum = Number(sum);
 
+    // Validate that conversions resulted in finite numbers
     if (!Number.isFinite(numericUserId) || !Number.isFinite(numericSum)) {
       return res.status(400).json({ id: 400, message: 'Invalid numeric fields' });
     }
 
+    // Define allowed categories
     const allowedCategories = ['food', 'health', 'housing', 'sports', 'education'];
+    
     if (!allowedCategories.includes(category)) {
       return res.status(400).json({ id: 400, message: 'Invalid category' });
     }
 
+    // Verify that the user exists in the database
     const userExists = await User.findOne({ id: numericUserId });
     if (!userExists) {
       return res.status(400).json({ id: 400, message: 'User not found' });
     }
 
+    // Handle optional createdAt parameter
     let parsedCreatedAt;
     if (createdAt) {
+      
       parsedCreatedAt = new Date(createdAt);
+      // Validate the date is valid
       if (isNaN(parsedCreatedAt.getTime())) {
         return res.status(400).json({ id: 400, message: 'Invalid createdAt' });
       }
 
+      // Get today's date at start of day
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      // Prevent adding costs in the past
       if (parsedCreatedAt < today) {
         return res.status(400).json({ id: 400, message: 'Cannot add cost in the past' });
       }
     }
 
+    // Create the cost item in the database
     const costItem = await Cost.create({
       description,
       category,
@@ -68,7 +80,8 @@ const addCostHandler = async (req, res) => {
       ...(parsedCreatedAt ? { createdAt: parsedCreatedAt } : {})
     });
 
-    return res.status(201).json(costItem.toObject({ versionKey: false }));
+    // Return the created item without _id
+    return res.status(201).json(costItem.toObject({ versionKey: false, transform: function(doc, ret) { delete ret._id; return ret; } }));
   } catch (err) {
     console.error(err);
     return res.status(400).json({ id: 400, message: err.message });

@@ -156,7 +156,7 @@ def test_add_expense_invalid_category_returns_400():
 
 def test_add_expense_user_not_found_returns_400():
     bad = dict(expense_data)
-    bad["user_id"] = 999999
+    bad["user_id"] = 9999998
     r = requests.post(f"{COST_SERVICE_URL}/api/add", json=bad, timeout=5)
     assert r.status_code == 400
     body = r.json()

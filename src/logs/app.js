@@ -15,7 +15,7 @@ app.use(logMiddleware);
 // Retrieve all logs
 app.get('/api/logs', async (req, res) => {
   try {
-    const logs = await Log.find({}).select('-__v');
+    const logs = await Log.find({}).select('-_id -__v');
     res.json(logs);
   } catch (err) {
     console.error(err);

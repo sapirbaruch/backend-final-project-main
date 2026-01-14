@@ -50,7 +50,7 @@ const addUserHandler = async (req, res) => {
       birthday: parsedBirthday
     });
 
-    return res.status(201).json(newUser);
+    return res.status(201).json(newUser.toObject({ versionKey: false, transform: function(doc, ret) { delete ret._id; return ret; } }));
   } catch (err) {
     console.error(err);
     return res.status(400).json({ id: 400, message: err.message });
@@ -83,7 +83,7 @@ app.get('/api/users/:id', async (req, res) => {
       first_name: user.first_name,
       last_name: user.last_name,
       id: user.id,
-      total
+      total: total.toFixed(2)
     });
   } catch (err) {
     console.error(err);
@@ -97,7 +97,7 @@ app.get('/api/users/:id', async (req, res) => {
 app.get('/api/users', async (req, res) => {
   try {
     // Keep MongoDB _id and the logical user id separate
-    const users = await User.find({}).select('-__v');
+     const users = await User.find({}).select('-_id -__v');
     return res.json(users);
   } catch (err) {
     console.error(err);

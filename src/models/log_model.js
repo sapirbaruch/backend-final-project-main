@@ -1,4 +1,9 @@
-// src/models/logodel.js
+/*
+ * log_model.js
+ * This model ensures logs are not just printed to the console,
+ * but persisted for long-term analysis,
+ * which is crucial for production applications.
+ */
 const mongoose = require('mongoose');
 
 const logSchema = new mongoose.Schema({

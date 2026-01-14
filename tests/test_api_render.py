@@ -128,7 +128,7 @@ def test_users_service_get_user_details_total():
     assert "total" in body
 
     # Total should be at least the last added expense (could be higher if DB already has data)
-    assert body["total"] >= expense_data["sum"]
+    assert float(body["total"]) >= expense_data["sum"]
 
 
 def test_logs_service_get_logs():
@@ -174,7 +174,7 @@ def test_add_expense_invalid_category_returns_400():
 
 def test_add_expense_user_not_found_returns_400():
     bad = dict(expense_data)
-    bad["user_id"] = 999999
+    bad["user_id"] = 9999998
     r = requests.post(f"{COST_SERVICE_URL}/api/add", json=bad, timeout=10)
     assert r.status_code == 400
     body = r.json()
