@@ -81,7 +81,7 @@ at least the following properties:
   "id": <error_code>,
   "message": "<error description>"
 }
-
+```
 ## Logging
 
 The system uses the Pino logging library.  
@@ -102,10 +102,11 @@ run the services with:
 
 ```bash
 NODE_ENV=test
-
+```
  Install dependencies:
 ```bash
 npm install
+```
 Create a .env file and define the MONGODB_URI variable.
 
 Run each process separately:
