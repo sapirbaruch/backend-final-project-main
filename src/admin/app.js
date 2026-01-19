@@ -13,7 +13,17 @@ app.use(logMiddleware);
 
 // Shared handler for both /api/about and /api/about/
 const aboutHandler = (req, res) => {
-  const raw = process.env.TEAM_MEMBERS || '';
+  const raw = (process.env.TEAM_MEMBERS || '').trim();
+
+  // Requirement: names should not be stored in DB.
+  // They should be provided via .env or be hardcoded in code.
+  // In production, prefer TEAM_MEMBERS in env.
+  if (!raw) {
+    return res.status(500).json({
+      id: 500,
+      message: 'TEAM_MEMBERS is not configured in the environment (.env / Render env vars)'
+    });
+  }
 
   const team = raw
     .split(';')
@@ -28,11 +38,14 @@ const aboutHandler = (req, res) => {
     })
     .filter((m) => m.first_name && m.last_name);
 
-  const fallbackTeam = [
-    { first_name: 'mosh', last_name: 'israeli' }
-  ];
+  if (team.length === 0) {
+    return res.status(500).json({
+      id: 500,
+      message: 'TEAM_MEMBERS is configured but could not be parsed. Expected format: "First Last;First Last"'
+    });
+  }
 
-  return res.json(team.length ? team : fallbackTeam);
+  return res.status(200).json(team);
 };
 
 // Support both variants for compatibility with external testers
@@ -41,10 +54,12 @@ app.get('/api/about/', aboutHandler);
 
 const PORT = process.env.PORT || process.env.PORT_ADMIN || 3004;
 
-// IMPORTANT: connect to MongoDB so logMiddleware can persist logs
-connectDb().then(() => {
-  app.listen(PORT, () => console.log(`Admin Service running on port ${PORT}`));
-}).catch((err) => {
-  console.error('Admin Service failed to start (DB connection error):', err.message);
-  process.exit(1);
-});
+// Connect to MongoDB so logMiddleware can persist logs
+connectDb()
+  .then(() => {
+    app.listen(PORT, () => console.log(`Admin Service running on port ${PORT}`));
+  })
+  .catch((err) => {
+    console.error('Admin Service failed to start (DB connection error):', err.message);
+    process.exit(1);
+  });
