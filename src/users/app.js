@@ -50,7 +50,15 @@ const addUserHandler = async (req, res) => {
       birthday: parsedBirthday
     });
 
-    return res.status(201).json(newUser.toObject({ versionKey: false, transform: function(doc, ret) { delete ret._id; return ret; } }));
+    return res.status(201).json(
+      newUser.toObject({
+        versionKey: false,
+        transform: function (doc, ret) {
+          delete ret._id;
+          return ret;
+        }
+      })
+    );
   } catch (err) {
     console.error(err);
     return res.status(400).json({ id: 400, message: err.message });
@@ -67,23 +75,29 @@ app.post('/api/add/', addUserHandler);
 app.get('/api/users/:id', async (req, res) => {
   try {
     const userId = Number(req.params.id);
+    if (!Number.isFinite(userId)) {
+      return res.status(400).json({ id: 400, message: 'Invalid user id' });
+    }
 
     const user = await User.findOne({ id: userId });
     if (!user) {
       return res.status(404).json({ id: 404, message: 'User not found' });
     }
 
-    const costs = await Cost.find({ userid: userId });
+    const costs = await Cost.find({ userid: userId }).select('sum');
     let total = 0;
     costs.forEach((c) => {
-      total += c.sum;
+      total += Number(c.sum) || 0;
     });
+
+    // Return total as NUMBER (not string)
+    const totalRounded = Number(total.toFixed(2));
 
     return res.json({
       first_name: user.first_name,
       last_name: user.last_name,
       id: user.id,
-      total: total.toFixed(2)
+      total: totalRounded
     });
   } catch (err) {
     console.error(err);
@@ -97,7 +111,7 @@ app.get('/api/users/:id', async (req, res) => {
 app.get('/api/users', async (req, res) => {
   try {
     // Keep MongoDB _id and the logical user id separate
-     const users = await User.find({}).select('-_id -__v');
+    const users = await User.find({}).select('-_id -__v');
     return res.json(users);
   } catch (err) {
     console.error(err);

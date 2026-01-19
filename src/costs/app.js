@@ -29,19 +29,14 @@ const addCostHandler = async (req, res) => {
       return res.status(400).json({ id: 400, message: 'Missing required fields' });
     }
 
-    
     const numericUserId = Number(rawUserId);
-   
     const numericSum = Number(sum);
 
-    // Validate that conversions resulted in finite numbers
     if (!Number.isFinite(numericUserId) || !Number.isFinite(numericSum)) {
       return res.status(400).json({ id: 400, message: 'Invalid numeric fields' });
     }
 
-    // Define allowed categories
     const allowedCategories = ['food', 'health', 'housing', 'sports', 'education'];
-    
     if (!allowedCategories.includes(category)) {
       return res.status(400).json({ id: 400, message: 'Invalid category' });
     }
@@ -55,23 +50,19 @@ const addCostHandler = async (req, res) => {
     // Handle optional createdAt parameter
     let parsedCreatedAt;
     if (createdAt) {
-      
       parsedCreatedAt = new Date(createdAt);
-      // Validate the date is valid
       if (isNaN(parsedCreatedAt.getTime())) {
         return res.status(400).json({ id: 400, message: 'Invalid createdAt' });
       }
 
-      // Get today's date at start of day
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      // Prevent adding costs in the past
+
       if (parsedCreatedAt < today) {
         return res.status(400).json({ id: 400, message: 'Cannot add cost in the past' });
       }
     }
 
-    // Create the cost item in the database
     const costItem = await Cost.create({
       description,
       category,
@@ -80,8 +71,15 @@ const addCostHandler = async (req, res) => {
       ...(parsedCreatedAt ? { createdAt: parsedCreatedAt } : {})
     });
 
-    // Return the created item without _id
-    return res.status(201).json(costItem.toObject({ versionKey: false, transform: function(doc, ret) { delete ret._id; return ret; } }));
+    return res.status(201).json(
+      costItem.toObject({
+        versionKey: false,
+        transform: function (doc, ret) {
+          delete ret._id;
+          return ret;
+        }
+      })
+    );
   } catch (err) {
     console.error(err);
     return res.status(400).json({ id: 400, message: err.message });
@@ -92,8 +90,8 @@ const addCostHandler = async (req, res) => {
 app.post('/api/add', addCostHandler);
 app.post('/api/add/', addCostHandler);
 
-// Get monthly report
-app.get('/api/report', async (req, res) => {
+// Shared handler for monthly report (support /api/report and /api/report/)
+const reportHandler = async (req, res) => {
   try {
     const { id, user_id, year, month } = req.query;
 
@@ -117,7 +115,10 @@ app.get('/api/report', async (req, res) => {
     console.error(err);
     return res.status(400).json({ id: 400, message: err.message });
   }
-});
+};
+
+app.get('/api/report', reportHandler);
+app.get('/api/report/', reportHandler);
 
 // Test cleanup endpoints only
 if (process.env.NODE_ENV === 'test') {

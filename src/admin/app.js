@@ -1,5 +1,6 @@
 const express = require('express');
 const dotenv = require('dotenv');
+const connectDb = require('../utils/connect_db');
 const { logMiddleware } = require('../utils/logger');
 
 dotenv.config();
@@ -31,13 +32,19 @@ const aboutHandler = (req, res) => {
     { first_name: 'mosh', last_name: 'israeli' }
   ];
 
-  res.json(team.length ? team : fallbackTeam);
+  return res.json(team.length ? team : fallbackTeam);
 };
 
 // Support both variants for compatibility with external testers
 app.get('/api/about', aboutHandler);
 app.get('/api/about/', aboutHandler);
 
-// Admin service does NOT require MongoDB connection
 const PORT = process.env.PORT || process.env.PORT_ADMIN || 3004;
-app.listen(PORT, () => console.log(`Admin Service running on port ${PORT}`));
+
+// IMPORTANT: connect to MongoDB so logMiddleware can persist logs
+connectDb().then(() => {
+  app.listen(PORT, () => console.log(`Admin Service running on port ${PORT}`));
+}).catch((err) => {
+  console.error('Admin Service failed to start (DB connection error):', err.message);
+  process.exit(1);
+});
