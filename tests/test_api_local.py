@@ -3,15 +3,16 @@ import requests
 from datetime import date
 import time
 
-# SERVICES (4 processes)
+# Service base URLs (4 processes): users, costs, logs, and admin/about.
 USER_SERVICE_URL = "http://localhost:3001"
 COST_SERVICE_URL = "http://localhost:3002"
 LOG_SERVICE_URL = "http://localhost:3003"
 ADMIN_SERVICE_URL = "http://localhost:3004"
 
+# Use today's date to test current-month report behavior.
 today = date.today()
 
-# Local test user
+# Local test user used by multiple tests.
 user_data = {
     "id": 111111,
     "first_name": "bot",
@@ -19,7 +20,7 @@ user_data = {
     "birthday": "1999-03-12"
 }
 
-# Submission-required imaginary user
+# Submission-required "imaginary user" that must exist in an empty DB scenario.
 PROF_USER = {
     "id": 123123,
     "first_name": "mosh",
@@ -27,6 +28,7 @@ PROF_USER = {
     "birthday": "1990-01-01"
 }
 
+# Base cost payload used for add-cost tests.
 expense_data = {
     "userid": user_data["id"],
     "description": "test-food",
@@ -34,9 +36,11 @@ expense_data = {
     "sum": 100
 }
 
+# Categories required by the project specification for reports.
 REQUIRED_CATEGORIES = {"food", "health", "housing", "sports", "education"}
 
 
+# Helper: perform HTTP request safely (return None on any exception/timeouts).
 def _safe_request(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
@@ -44,11 +48,13 @@ def _safe_request(fn, *args, **kwargs):
         return None
 
 
+# Helper: validate standard error JSON shape returned by services.
 def _assert_error_shape(body):
     assert isinstance(body, dict)
     assert "id" in body and "message" in body
 
 
+# Helper: convert the report "costs" array-of-dicts into a single category->items mapping.
 def _extract_categories(report_json):
     assert "costs" in report_json
     assert isinstance(report_json["costs"], list)
@@ -61,6 +67,7 @@ def _extract_categories(report_json):
     return cats
 
 
+# Helper: validate report structure and required category buckets.
 def _assert_report_structure(data, year, month, userid):
     assert data.get("userid") == userid
     assert data.get("year") == year
@@ -77,9 +84,10 @@ def _assert_report_structure(data, year, month, userid):
             assert 1 <= item["day"] <= 31
 
 
+# Session fixture: ensure required users exist before running tests (idempotent).
 @pytest.fixture(scope="session", autouse=True)
 def setup_once():
-    # Ensure local test user exists
+    # Create local test user (or accept already-existing outcomes).
     r1 = _safe_request(
         requests.post,
         f"{USER_SERVICE_URL}/api/add",
@@ -89,7 +97,7 @@ def setup_once():
     if r1 is not None:
         assert r1.status_code in (200, 201, 400, 409)
 
-    # Ensure professor-required user exists
+    # Create professor-required user (or accept already-existing outcomes).
     r2 = _safe_request(
         requests.post,
         f"{USER_SERVICE_URL}/api/add",
@@ -121,10 +129,12 @@ def test_users_service_get_user_details_total():
     assert r.status_code == 200
     body = r.json()
 
+    # Verify minimal user fields and computed "total" are present.
     assert body.get("id") == user_data["id"]
     assert "first_name" in body and "last_name" in body
     assert "total" in body
 
+    # Allow services that might return total as string; ensure it's numeric and non-negative.
     total = body["total"]
     if isinstance(total, str):
         total = float(total)
@@ -145,6 +155,7 @@ def test_costs_service_add_expense():
     )
     assert r.status_code in (200, 201)
 
+    # Validate returned cost object matches input and includes sum.
     body = r.json()
     assert body.get("userid") == user_data["id"]
     assert body.get("category") == expense_data["category"]
@@ -156,6 +167,7 @@ def test_costs_service_get_report_structure():
     year = today.year
     month = today.month
 
+    # Request monthly report and validate required structure and categories.
     url = f"{COST_SERVICE_URL}/api/report?id={user_data['id']}&year={year}&month={month}"
     r = requests.get(url, timeout=5)
     assert r.status_code == 200
@@ -175,15 +187,19 @@ def test_logs_service_get_logs():
 
 
 def test_logs_not_decreasing_after_requests():
+    # Record log count before issuing new requests.
     r1 = requests.get(f"{LOG_SERVICE_URL}/api/logs", timeout=5)
     before = r1.json()
     before_count = len(before)
 
+    # Trigger requests that should be logged by middleware across services.
     requests.get(f"{USER_SERVICE_URL}/api/users", timeout=5)
     requests.get(f"{ADMIN_SERVICE_URL}/api/about", timeout=5)
 
+    # Small delay: DB logging is asynchronous; allow time for writes to complete.
     time.sleep(0.3)
 
+    # Verify logs did not decrease (may increase depending on timing).
     r2 = requests.get(f"{LOG_SERVICE_URL}/api/logs", timeout=5)
     after_count = len(r2.json())
 
@@ -199,6 +215,7 @@ def test_admin_about():
     assert r.status_code == 200
     data = r.json()
 
+    # Response must be a list of {first_name, last_name} objects only.
     assert isinstance(data, list)
     assert len(data) >= 1
 
@@ -211,6 +228,7 @@ def test_admin_about():
 # -----------------------------
 
 def test_professor_style_report_before_and_after():
+    # Follow the exact flow: fetch report -> add cost -> fetch report again.
     user_id = 123123
     year = 2026
     month = 1

@@ -3,15 +3,16 @@ import requests
 import time
 from datetime import date
 
-# SERVICES (Render deployment)
+# SERVICES (Render deployment): base URLs for the 4 microservices.
 USER_SERVICE_URL = "https://cost-manager-users-j6e2.onrender.com"
 COST_SERVICE_URL = "https://cost-manager-costs-yl72.onrender.com"
 LOG_SERVICE_URL = "https://cost-manager-logs-7txc.onrender.com"
 ADMIN_SERVICE_URL = "https://cost-manager-admin-vcoh.onrender.com"
 
+# Use today's date to validate current-month report retrieval on Render.
 today = date.today()
 
-# Local test user on Render (safe to create; no deletes)
+# Safe test user on Render (no delete operations in this suite).
 user_data = {
     "id": 111111,
     "first_name": "bot",
@@ -19,7 +20,7 @@ user_data = {
     "birthday": "1999-03-12"
 }
 
-# Minimal required fields for cost item (per requirements)
+# Minimal required cost fields according to the project requirements.
 expense_minimal = {
     "userid": user_data["id"],
     "description": "test-food",
@@ -27,9 +28,11 @@ expense_minimal = {
     "sum": 100
 }
 
+# Categories required to exist in report output even when empty.
 REQUIRED_CATEGORIES = {"food", "health", "housing", "sports", "education"}
 
 
+# Helper: execute a request function safely (return None on any exception).
 def _safe_request(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
@@ -37,6 +40,7 @@ def _safe_request(fn, *args, **kwargs):
         return None
 
 
+# Helper: Render-safe request wrapper with timeouts and retries on network failures only.
 def _request_with_retry(method, url, attempts=4, timeout=12, sleep_seconds=2, **kwargs):
     """
     Render-safe request:
@@ -61,21 +65,21 @@ def _request_with_retry(method, url, attempts=4, timeout=12, sleep_seconds=2, **
     raise last_exc
 
 
+# Helper: validate the standard error JSON shape {id, message}.
 def _assert_error_shape(body):
     assert isinstance(body, dict)
     assert "id" in body and "message" in body
 
 
+# Helper: convert report_json["costs"] (list of dicts) into a category->items mapping.
 def _extract_categories(report_json):
     """
     report_json["costs"] is a list like:
-    [
       {"food": [ ... ]},
       {"education": [ ... ]},
       {"health": []},
       {"housing": []},
       {"sports": []}
-    ]
     Returns dict: {"food": [...], ...}
     """
     assert "costs" in report_json
@@ -89,6 +93,7 @@ def _extract_categories(report_json):
     return cats
 
 
+# Helper: validate report structure and enforce that all required categories exist.
 def _assert_report_structure(data, year, month, userid):
     assert data.get("userid") == userid
     assert data.get("year") == year
@@ -96,13 +101,13 @@ def _assert_report_structure(data, year, month, userid):
 
     cats = _extract_categories(data)
 
-    # Must include all 5 categories even if empty
+    # Must include all 5 categories even if empty.
     assert REQUIRED_CATEGORIES.issubset(set(cats.keys()))
 
     for cat in REQUIRED_CATEGORIES:
         assert isinstance(cats[cat], list)
 
-        # If category has items, each item must include sum/description/day
+        # If category has items, each item must include sum/description/day.
         for item in cats[cat]:
             assert isinstance(item, dict)
             assert "sum" in item and "description" in item and "day" in item
@@ -110,6 +115,7 @@ def _assert_report_structure(data, year, month, userid):
             assert 1 <= item["day"] <= 31
 
 
+# Helper: warm up services to reduce Render cold-start timeouts (any status is acceptable).
 def _warm_up_services():
     """
     Helps avoid Render cold-start timeouts by touching each service once.
@@ -121,13 +127,14 @@ def _warm_up_services():
     _request_with_retry("GET", f"{ADMIN_SERVICE_URL}/api/about", attempts=2, timeout=12)
 
 
+# Session fixture: warm up dynos and ensure required users exist for the full test session.
 @pytest.fixture(scope="session", autouse=True)
 def setup_once():
     """
     Session setup:
     - Warm up services to reduce cold-start issues
-    - Ensure the test user exists (create it if missing).
-    - Ensure imaginary submission user 123123 exists (needed for professor-style tests).
+    - Ensure the test user exists (create it if missing)
+    - Ensure imaginary submission user 123123 exists (needed for professor-style tests)
     """
     _warm_up_services()
 
@@ -135,6 +142,7 @@ def setup_once():
     if r is not None:
         assert r.status_code in (200, 201, 400, 409)
 
+    # Professor-required user for the fixed flow tests (id=123123).
     prof_user = {
         "id": 123123,
         "first_name": "mosh",
@@ -165,11 +173,12 @@ def test_users_service_get_user_details_total():
     assert r.status_code == 200, f"status={r.status_code} body={r.text}"
     body = r.json()
 
+    # Validate that response includes the logical user id and computed "total".
     assert body.get("id") == user_data["id"]
     assert "total" in body
 
     total = body["total"]
-    # Accept number OR numeric string like "100.00"
+    # Accept number OR numeric string like "100.00".
     if isinstance(total, str):
         total = float(total)
 
@@ -185,6 +194,7 @@ def test_costs_service_add_expense_minimal_fields():
     r = _request_with_retry("POST", f"{COST_SERVICE_URL}/api/add", json=expense_minimal)
     assert r.status_code in (200, 201), f"status={r.status_code} body={r.text}"
 
+    # Validate returned cost object fields match the payload.
     body = r.json()
     assert body.get("userid") == user_data["id"]
     assert body.get("category") == expense_minimal["category"]
@@ -196,7 +206,7 @@ def test_costs_service_get_report_structure():
     year = today.year
     month = today.month
 
-    # Try both forms: /api/report and /api/report/
+    # Try both variants: /api/report and /api/report/ (some deployments differ).
     url1 = f"{COST_SERVICE_URL}/api/report?id={user_data['id']}&year={year}&month={month}"
     url2 = f"{COST_SERVICE_URL}/api/report/?id={user_data['id']}&year={year}&month={month}"
 
@@ -226,7 +236,7 @@ def test_logs_service_get_logs_returns_list():
 # -----------------------------
 
 def test_admin_about_only_first_last_name():
-    # professor sample uses /api/about/
+    # Professor sample uses /api/about/ but some routers accept /api/about.
     url1 = f"{ADMIN_SERVICE_URL}/api/about/"
     url2 = f"{ADMIN_SERVICE_URL}/api/about"
 
@@ -240,6 +250,7 @@ def test_admin_about_only_first_last_name():
     assert isinstance(data, list)
     assert len(data) >= 1
 
+    # Each team member must include ONLY first_name and last_name.
     for obj in data:
         assert isinstance(obj, dict)
         assert set(obj.keys()) == {"first_name", "last_name"}
@@ -291,7 +302,7 @@ def test_professor_style_flow_about_report_add_report():
     """
     _warm_up_services()
 
-    # 1) about
+    # 1) about: accept both /api/about/ and /api/about.
     about_url = f"{ADMIN_SERVICE_URL}/api/about/"
     r_about = _request_with_retry("GET", about_url, attempts=3, timeout=12)
     if r_about.status_code != 200:
@@ -305,7 +316,7 @@ def test_professor_style_flow_about_report_add_report():
     for obj in about_data:
         assert set(obj.keys()) == {"first_name", "last_name"}
 
-    # 2) report (before)
+    # 2) report (before): fixed user/year/month used by professor-style tests.
     user_id = 123123
     year = 2026
     month = 1
@@ -319,14 +330,14 @@ def test_professor_style_flow_about_report_add_report():
     assert data1.get("year") == year
     assert data1.get("month") == month
 
-    # 3) add cost
+    # 3) add cost: add a simple cost item for the professor user.
     add_url = f"{COST_SERVICE_URL}/api/add/"
     payload = {"userid": user_id, "description": "milk 9", "category": "food", "sum": 8}
 
     r2 = _request_with_retry("POST", add_url, json=payload, attempts=3, timeout=12)
     assert r2.status_code in (200, 201), f"add cost status={r2.status_code} body={r2.text}"
 
-    # 4) report (after)
+    # 4) report (after): must still return the correct shape.
     r3 = _request_with_retry("GET", report_url, attempts=3, timeout=12)
     assert r3.status_code == 200, f"report(after) status={r3.status_code} body={r3.text}"
 

@@ -6,6 +6,7 @@ dotenv.config();
 /*
  * Database Connection Utility
  *
+//
  * This module is responsible for establishing a connection to MongoDB.
  * The connection string is read from an environment variable (MONGODB_URI)
  * in order to avoid hardcoding sensitive credentials in the source code.
@@ -14,6 +15,7 @@ dotenv.config();
 // Read MongoDB connection string from environment variables
 const MONGODB_URI = process.env.MONGODB_URI;
 
+//
 // Fail fast if the connection string is missing
 if (!MONGODB_URI) {
   console.error(
@@ -22,6 +24,7 @@ if (!MONGODB_URI) {
 }
 
 /*
+//
  * Connect to MongoDB using Mongoose.
  *
  * - Uses async/await for clean asynchronous flow
@@ -30,6 +33,7 @@ if (!MONGODB_URI) {
  */
 const connectDb = async () => {
   try {
+//
     if (!MONGODB_URI) {
       throw new Error('Missing MONGODB_URI');
     }
@@ -38,6 +42,7 @@ const connectDb = async () => {
   serverSelectionTimeoutMS: 5000
 });
 
+//
 
     console.log('MongoDB connected successfully');
   } catch (error) {
@@ -46,4 +51,5 @@ const connectDb = async () => {
   }
 };
 
+//
 module.exports = connectDb;

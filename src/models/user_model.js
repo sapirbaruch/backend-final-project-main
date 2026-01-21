@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
  * Represents a system user.
  * The user id is a numeric identifier, as required by the project specification.
  * This model stores only basic personal details (no authentication data).
+//
  */
 
 const userSchema = new mongoose.Schema({
@@ -14,6 +15,7 @@ const userSchema = new mongoose.Schema({
     type: Number,
     required: true,
     unique: true,
+//
     index: true
   },
 
@@ -22,6 +24,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+//
 
   // User last name
   last_name: {
@@ -30,6 +33,7 @@ const userSchema = new mongoose.Schema({
   },
 
   // User birth date
+//
   birthday: {
     type: Date,
     required: true
